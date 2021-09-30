@@ -230,7 +230,14 @@ int getByte(int x, int n) {
  *  Rating: 2
  */
 int byteSwap(int x, int n, int m) {
-    return 2;
+  /* Get bytes individually. Then We create a filter of all 1's except where the bytes were
+    where we set them to 0's. We then AND the orignal number and the filter to make holes
+    where we need the bytes. We then OR the number and the bytes shifted to their swapped 
+    positions to get the result */
+  int b1 = (x >> (n << 3)) & 255;
+  int b2 = (x >> (m << 3)) & 255;
+  int filter = ((255 << (n << 3)) | (255 << (m << 3))) ^ (~0);
+  return (x & filter) | (b1 << (m << 3) | (b2 << (n << 3)));
 }
 /* 
  * isEqual - return 1 if x == y, and 0 otherwise 
@@ -282,7 +289,11 @@ int sign(int x) {
  *   Rating: 3
  */
 int replaceByte(int x, int n, int c) {
-  return 2;
+  /* Create a filter of 1's everywhere except for position n then AND the filter with 
+    the original number to make a hole where the old byte was. We then OR this number 
+    with our byte shifted to the position to get our result */
+  int filter = (255 << (n << 3)) ^ (~0);
+  return (x & filter) | (c << (n << 3));
 }
 /* 
  * isAsciiDigit - return 1 if 0x30 <= x <= 0x39 (ASCII codes for characters '0' to '9')
@@ -294,7 +305,13 @@ int replaceByte(int x, int n, int c) {
  *   Rating: 3
  */
 int isAsciiDigit(int x) {
-  return 2;
+  /* If we compute 0x39 - x and it's negative then x exceeded 0x39. If we do x - 0x30 
+    and it's negative then x was smaller than 0.30. We isolate and check these upper 
+    and lower sign bits to see check if either is negative */
+  int upper = (0x39 + (~x + 1)) >> 31;
+  int lower = (x + (~0x30 + 1)) >> 31;
+  int result = (!upper) & (!lower);
+  return result;
 }
 /* 
  * bitMask - Generate a mask consisting of all 1's 
@@ -307,7 +324,13 @@ int isAsciiDigit(int x) {
  *   Rating: 3
  */
 int bitMask(int highbit, int lowbit) {
-  return 2;
+  /* Fs starts as all 1s. We then shift this over highbit + 1 bits to get the desired
+    number of 0s before 1s. We NOT this to get 1s in the desired position since we're 
+    working with the highbit. We then take Fs again and shift it by the lowerbit. This 
+    will give us a nice overlap of 1s in the correct place. We AND the two to get our
+    result */
+  int Fs = ~0;
+  return  (Fs << lowbit) & ~(Fs << highbit << 1);
 }
 /* 
  * rotateRight - Rotate x to the right by n
@@ -318,7 +341,14 @@ int bitMask(int highbit, int lowbit) {
  *   Rating: 3 
  */
 int rotateRight(int x, int n) {
-  return 2;
+  /* First we move our number to the left to place left bits in place. We then create 
+    a mask of where we want to start pasting the right bits. We then AND the bits to 
+    the right with our mask to get them copied to our mask. With this we are able to 
+    OR our mask and get our result in one number */
+  int shift = x << (32 + (~n +1)), replace, result;
+  replace = ~(1 << 31) >> (n+((~1)+1));
+  result = ((x >> n) & replace) | shift;
+  return result;
 }
 /* Rating 4 */
 /* 
@@ -329,8 +359,9 @@ int rotateRight(int x, int n) {
  *   Rating: 4 
  */
 int bang(int x) {
-  //return (((~x + 1) | x) >> 31) + 1;
-  return 2;
+  /* We can get !x by ORing it with -x (~x + 1) and isolating the sign bit
+    which we can add 1 to to get our result */
+  return ((x | (~x + 1)) >> 31) + 1;
 }
 /* 
  * greatestBitPos - return a mask that marks the position of the
@@ -341,7 +372,16 @@ int bang(int x) {
  *   Rating: 4 
  */
 int greatestBitPos(int x) {
-  return 2;
+  /* If we shift x over and over again and OR it with itself each time, we'll end up with 
+    a string of 1s which go from bit 0 to the highest bit a 1 existed at. We can take 
+    advantage of this by ANDing this string with x shifted by 1 XOR with itself. This will 
+    leave just the greatest bit selected */
+  x = (x | (x >> 1));
+  x = (x | (x >> 2));
+  x = (x | (x >> 4));
+  x = (x | (x >> 8));
+  x = (x | (x >> 16));
+  return x & ((1 << 31) | ((x >> 1) ^ x));
 }
 /* 
  * logicalNeg - implement the ! operator, using all of 
@@ -352,7 +392,9 @@ int greatestBitPos(int x) {
  *   Rating: 4 
  */
 int logicalNeg(int x) {
-  return 2;
+  /* We can get !x by ORing it with -x (~x + 1) and isolating the sign bit
+    which we can add 1 to to get our result */
+  return ((x | (~x + 1)) >> 31) + 1;
 }
 /*
  * bitParity - returns 1 if x contains an odd number of 0's
@@ -362,7 +404,19 @@ int logicalNeg(int x) {
  *   Rating: 4
  */
 int bitParity(int x) {
-  return 2;
+  /* We can calculate this by XORing our original number with focus on the last 
+    16 bits. This means that if there are bits in the first and last positions
+    they will cancel eachother out. WE can continue this process with halving it
+    until we end up at 1. This process checks for an even number of 1s and cancels
+    them out if this is the case. This makes it so that if we have an odd number 
+    of 0s, bit 0 will be a 1. We can check for this by ANDing our number with 1 */
+  x = (x >> 16) ^ x;
+  x = (x >> 8) ^ x;
+  x = (x >> 4) ^ x;
+  x = (x >> 2) ^ x;
+  x = (x >> 1) ^ x;
+
+  return x & 1;
 }
 /* 
  * isNonZero - Check whether x is nonzero using
@@ -373,5 +427,9 @@ int bitParity(int x) {
  *   Rating: 4 
  */
 int isNonZero(int x) {
-  return 2;
+  /* x and -x can only be non negative numbers if x is 0, so if we OR x with -x 
+    we can combine the sign bit to see if either is 1 (negative). We isolate the
+    sign bit by shifting it to bit 0 then ANDing it with 1 to get its value only.
+    This gives us a 1 if it's non-zero and 0 if it's zero */
+  return ((x | (~x + 1)) >> 31) & 1;
 }
